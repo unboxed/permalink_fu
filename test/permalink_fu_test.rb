@@ -10,7 +10,10 @@ rescue LoadError
 end
 
 gem 'activesupport'
+require 'active_support/core_ext/array'
 require 'active_support/core_ext/blank'
+require 'active_support/core_ext/duplicable'
+require 'active_support/core_ext/class/inheritable_attributes'
 
 class FauxColumn < Struct.new(:limit)
 end
@@ -20,8 +23,14 @@ class BaseModel
     @columns_hash ||= {'permalink' => FauxColumn.new(100)}
   end
 
-  def self.inherited(base)
-    subclasses << base
+  def self.inherited(child)
+    @@subclasses[self] ||= []
+    @@subclasses[self] << child
+    super
+  end
+
+  def self.subclasses
+    @@subclasses
   end
 
   extend PermalinkFu::PluginMethods
@@ -32,9 +41,9 @@ class BaseModel
   attr_accessor :foo
 
   class << self
-    attr_accessor :validation, :subclasses
+    attr_accessor :validation
   end
-  self.subclasses = []
+  @@subclasses = {}
 
   def self.generated_methods
     @generated_methods ||= []
@@ -106,6 +115,10 @@ class MockModel < BaseModel
     else
       false
     end
+  end
+  
+  def self.test
+    return "test"
   end
 
   has_permalink :title
@@ -214,8 +227,14 @@ class MockModelExtra < BaseModel
   has_permalink [:title, :extra]
 end
 
+class ExtendedModel < MockModel
+  # This should be empty -- it's only needed to test for STI compatibility
+end
+
 # trying to be like ActiveRecord, define the attribute methods manually
-BaseModel.subclasses.each { |c| c.send :define_attribute_methods }
+BaseModel.subclasses[BaseModel].each do |c|
+  c.send(:define_attribute_methods)
+end
 
 class PermalinkFuTest < Test::Unit::TestCase
   @@samples = {
@@ -497,4 +516,13 @@ class PermalinkFuTest < Test::Unit::TestCase
     s2.validate
     assert_equal 'ack-2', s2.permalink
   end
+
+  def test_should_work_correctly_with_sti
+    @m = ExtendedModel.new
+    @m.title = 'the permalink'
+    @m.permalink = ''
+    @m.send(:create_unique_permalink)
+    assert_equal 'the-permalink', @m.read_attribute(:permalink)
+  end
+
 end
