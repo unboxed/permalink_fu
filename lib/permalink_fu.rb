@@ -68,6 +68,7 @@ module PermalinkFu
         self.permalink_attributes = Array(attr_names)
         self.permalink_field      = (permalink_field || 'permalink').to_s
         self.permalink_options    = {:unique => true}.update(options)
+        self.permalink_class      = self
       end
     end
   end
@@ -80,6 +81,7 @@ module PermalinkFu
         class_inheritable_hash :permalink_options
         class_inheritable_array :permalink_attributes
         class_inheritable_accessor :permalink_field        
+        class_inheritable_accessor :permalink_class
       end
 
       base.send :include, InstanceMethods
@@ -145,7 +147,7 @@ module PermalinkFu
           end
         end
       end
-      while self.class.exists?(conditions)
+      while self.permalink_class.exists?(conditions)
         suffix = "-#{counter += 1}"
         conditions[1] = "#{base[0..limit-suffix.size-1]}#{suffix}"
         send("#{self.class.permalink_field}=", conditions[1])

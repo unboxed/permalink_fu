@@ -115,7 +115,14 @@ class PermalinkFuTest < Test::Unit::TestCase
     assert @m.valid?
     assert_equal 'foo', @m.permalink
   end
-  
+
+  def test_should_have_unique_permalink_across_all_subclasses
+    m2 = ExtendedModel.new
+    m2.title = 'Foo' # 'foo' is stubbed as already existing on MockModel
+    assert m2.valid?
+    assert_equal 'foo-2', m2.read_attribute(:permalink)
+  end
+
   def test_should_limit_permalink
     @old = MockModel.columns_hash['permalink'].instance_variable_get(:@limit)
     MockModel.columns_hash['permalink'].instance_variable_set(:@limit, 2)
